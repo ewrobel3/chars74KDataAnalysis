@@ -35,6 +35,7 @@ def preprocess(imgs):
             #img_blur = filters.gaussian(img_gray, sigma=0.4)
             img = transform.resize(img, (32, 32), anti_aliasing=True) #anti_aliasing automatically blurs before resize 
             #f = feature.hog(img_gray, orientations=10, pixels_per_cell=(48, 48), cells_per_block=(2, 2), feature_vector=True, block_norm='L2-Hys')
+            img = img.flatten()
             l.append(img)
         return np.array(l)
 
@@ -47,13 +48,11 @@ def main():
         plt.subplot(1, 5, index + 1)
         plt.imshow(np.reshape(image, (32,32)), cmap=plt.cm.gray)
         plt.title('Training: ' + labels + '\n', fontsize = 20)
-    #logisticRegr = LogisticRegression(solver = 'lbfgs')
-    #lmfit = logisticRegr.fit(train_X, train_Y)
-    #print(lmfit)
-    #predictions = lmfit.predict(test_X)
-
-    #score = logisticRegr.score(predictions, test_Y)
-    #print(score)
+    logisticRegr = LogisticRegression(solver = 'lbfgs')
+    lmfit = logisticRegr.fit(train_X, train_Y)
+    predictions = lmfit.predict(test_X)
+    score = logisticRegr.score(predictions, test_Y)
+    print(score)
   #  cm = metrics.confusion_matrix(test_Y, predictions)
    # print(cm)
     #plt.figure(figsize=(9,9))
