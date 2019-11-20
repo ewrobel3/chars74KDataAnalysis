@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 import os.path
-from skimage import io, color, filters, feature, transform
+from skimage import io, color, filters, feature, transform, exposure, util
+from skimage.morphology import skeletonize
 from sklearn.decomposition import PCA
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
@@ -30,30 +31,62 @@ def load_data(data_amnt):
 def preprocess(imgs):
         l = []
         for img in imgs:
+
+            # 1. RGB to Gray
             img = color.rgb2gray(img)
-            img = transform.resize(img, (32, 32), anti_aliasing=True, mode='reflect') 
-            # img = filters.gaussian(img, 0.4)
-            f = feature.hog(img, orientations=10, pixels_per_cell=(4, 4), cells_per_block=(4, 4), block_norm='L2-Hys')
-            img = np.array(f).flatten()
-            l.append(img)
+            # plt.figure()
+            # plt.imshow(img, cmap='gray')
+
+            # 2. Size normalization
+            img = transform.resize(img, (64, 64), anti_aliasing=True, mode='reflect')
+            # plt.figure()
+            # plt.imshow(img, cmap='gray')
+
+            # 3. Binarization
+            thresh = filters.threshold_otsu(img)
+            img = img > thresh
+            img = util.invert(img)
+            # plt.figure()
+            # plt.imshow(img, cmap='gray')
+
+            # 4. Skeletonization: thins lines in image to produce a skeleton of each character input
+            img = skeletonize(img).astype(float)
+            # plt.figure()
+            # plt.imshow(img, cmap='gray')
+
+            # 5. Feature Extraction: Histogram of Oriented Gradients
+            f = feature.hog(img, orientations=10, pixels_per_cell=(8, 8), feature_vector=True, cells_per_block=(2, 2), block_norm='L2-Hys')
+            # img = exposure.rescale_intensity(img, in_range=(0, 10))
+            # plt.figure()
+            # plt.imshow(img, cmap='gray')
+            l.append(f)
+            # plt.show()
         return np.array(l)
 
 def optimize_svm(train_X, train_Y, test_X, test_Y, n_pca=50):
+    train_X = preprocess(train_X)
+    test_X = preprocess(test_X)
+
+    # Grid Search CV
     # svm = SVC(gamma='auto')
-    # parameters = {'kernel':('linear', 'rbf'), 'C':[0.1, 1, 10]}
+    # parameters = {'kernel':('linear', 'rbf'), 'C':[0.1, 1, 10, 100, 1000]}
     # clf = GridSearchCV(svm, parameters, cv=5)
     # model = clf.fit(train_X, train_Y)
     # print(model)
+
+    # Regular
+    svm = SVC(gamma='scale', C=1.0, kernel='linear')
+    # svm.fit(train_X, train_Y)
+
     # train_prediction = clf.predict(train_X)
     # test_prediction = clf.predict(test_X)
 
 
+    PCA
     pca = PCA(n_components=n_pca)
     pca_model = pca.fit(train_X)
     pca_train = pca_model.transform(train_X)
     pca_test = pca_model.transform(test_X)
-    
-    svm = SVC(gamma='scale', C=1.0, kernel='rbf')
     svm.fit(pca_train, train_Y)
     train_prediction = svm.predict(pca_train)
     test_prediction = svm.predict(pca_test)
@@ -64,21 +97,24 @@ def optimize_svm(train_X, train_Y, test_X, test_Y, n_pca=50):
 
 def main():
     train_X, train_Y, test_X, test_Y = load_data(200)
-    train_X = preprocess(train_X)
-    test_X = preprocess(test_X)
-    trn_acc, tst_acc = optimize_svm(train_X, train_Y, test_X, test_Y)
+    # trn_acc, tst_acc = optimize_svm(train_X, train_Y, test_X, test_Y)
+    train =[]
+    test = []
         
-    print("Train and test accuracy with hog", trn_acc, tst_acc)
-    # print("Best number of components for PCA with SVM classifier:", max_n)
-    # plt.title("SVM Accuracy", fontsize=16, fontweight='bold')
-    # plt.xlabel("Number of PCA Components")
-    # plt.ylabel("Accuracy")
-    # xaxis = np.linspace(50, 65, 16)
-    # plt.xticks(np.arange(50, 65))
-    # train_plt = plt.plot(xaxis, train_accuracy, c='b')
-    # test_plt = plt.plot(xaxis, test_accuracy, c='r')
-    # plt.legend([train_plt, test_plt], ['Train', 'Test'])
-    # plt.show()
+    for n in range(5):
+        trn_acc, tst_acc = optimize_svm(train_X, train_Y, test_X, test_Y, 50+n*10)
+        train.append(trn_acc)
+        test.append(tst_acc)
+    
+    print("Best number of components for PCA with SVM classifier:")
+    plt.title("SVM Accuracy", fontsize=16, fontweight='bold')
+    plt.xlabel("Number of PCA Components")
+    plt.ylabel("Accuracy")
+    xaxis = np.linspace(50, 100, 5)
+    plt.xticks(np.arange(50, 101, 10))
+    plt.plot(xaxis, train, c='b', label='train')
+    plt.plot(xaxis, test, c='r', label='test')
+    plt.show()
 
 if __name__ == "__main__":
     main()
