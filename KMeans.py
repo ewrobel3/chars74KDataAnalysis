@@ -6,6 +6,7 @@ This is a temporary script file.
 """
 
 import numpy as np
+import pandas as pd
 from skimage import io, color, filters, feature, transform
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
@@ -65,6 +66,33 @@ def kMeans():
         axi.set(xticks=[], yticks=[])
         axi.imshow(center, interpolation='nearest', cmap=plt.cm.binary)
         
+    clusterdict = {}
+    #create dictionary with cluster numbers as keys and lists of indices in test_X as values
+    for i in range(len(kmnfit)):
+        if kmnfit[i] in clusterdict:
+            clusterdict[kmnfit[i]].append(i)
+        else:
+            clusterdict[kmnfit[i]] = [i]
+            #now clusterdict has an entry for each cluster that contains a list of the indices in train_X that make up that cluster
+    #Make values of clusterdict be dictionaries of format {character: number of occurrences}
+    for cluster, indices in clusterdict.items():
+        clusterdict[cluster] = {}
+        for i in indices:
+            if (train_Y[i]) in clusterdict[cluster]:
+                clusterdict[cluster][train_Y[i]] += 1
+            else:
+                clusterdict[cluster][train_Y[i]] = 1
+    labelNames = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+    clusterTable = pd.DataFrame.from_dict(clusterdict, orient='index', columns=labelNames)
+    clusterTable.fillna(0)
+    clusterTable.to_excel("ClusterTable1.xlsx")
+    plt.savefig("Clusters.png")
+    print(clusterTable)
+    
+        
+        
 def spectralClustering():
     train_X, train_Y, test_X, test_Y = load_data()
     train_X = preprocess(train_X)
@@ -92,7 +120,7 @@ def meanShift():
         axi.imshow(center, interpolation='nearest', cmap=plt.cm.binary)
         
 def main():
-    meanShift()
+    kMeans()
         
 if __name__== "__main__":
   main()
